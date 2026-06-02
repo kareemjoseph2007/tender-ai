@@ -82,7 +82,12 @@ function mapTedNotice(notice: TedNotice): OpportunityInsert | null {
 }
 
 export async function fetchTEDOpportunities(): Promise<FetchResult> {
-  const result: FetchResult = { inserted: 0, skipped: 0, errors: [] };
+  const result: FetchResult = {
+    inserted: 0,
+    skipped: 0,
+    errors: [],
+    insertedIds: [],
+  };
 
   try {
     let body: TedSearchResponse | null = null;

@@ -4,7 +4,12 @@ import type { FetchResult, OpportunityInsert } from "@/lib/sources/types";
 export async function upsertOpportunities(
   opportunities: OpportunityInsert[]
 ): Promise<FetchResult> {
-  const result: FetchResult = { inserted: 0, skipped: 0, errors: [] };
+  const result: FetchResult = {
+    inserted: 0,
+    skipped: 0,
+    errors: [],
+    insertedIds: [],
+  };
 
   if (opportunities.length === 0) {
     return result;
@@ -43,6 +48,26 @@ export async function upsertOpportunities(
 
   result.inserted = rows.filter((row) => !existingIds.has(row.source_id)).length;
   result.skipped = rows.length - result.inserted;
+
+  const newSourceIds = rows
+    .filter((row) => !existingIds.has(row.source_id))
+    .map((row) => row.source_id);
+
+  if (newSourceIds.length > 0) {
+    const { data: insertedRows, error: insertedError } = await supabase
+      .from("opportunities")
+      .select("id")
+      .eq("source_portal", portal)
+      .in("source_id", newSourceIds);
+
+    if (insertedError) {
+      result.errors.push(
+        `Failed to fetch inserted IDs: ${insertedError.message}`
+      );
+    } else {
+      result.insertedIds = (insertedRows ?? []).map((row) => row.id);
+    }
+  }
 
   return result;
 }

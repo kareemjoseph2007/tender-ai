@@ -170,7 +170,12 @@ async function fetchReleasePage(url: string): Promise<OcdsReleasePackage> {
 }
 
 export async function fetchUKTenders(): Promise<FetchResult> {
-  const result: FetchResult = { inserted: 0, skipped: 0, errors: [] };
+  const result: FetchResult = {
+    inserted: 0,
+    skipped: 0,
+    errors: [],
+    insertedIds: [],
+  };
   const opportunities: OpportunityInsert[] = [];
   const seenSourceIds = new Set<string>();
 
@@ -216,6 +221,7 @@ export async function fetchUKTenders(): Promise<FetchResult> {
     return {
       inserted: upsertResult.inserted,
       skipped: upsertResult.skipped,
+      insertedIds: upsertResult.insertedIds,
       errors: [...result.errors, ...upsertResult.errors],
     };
   } catch (error) {

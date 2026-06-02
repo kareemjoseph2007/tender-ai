@@ -28,6 +28,7 @@ export interface FetchResult {
   inserted: number;
   skipped: number;
   errors: string[];
+  insertedIds: string[];
 }
 
 export interface Opportunity extends OpportunityInsert {

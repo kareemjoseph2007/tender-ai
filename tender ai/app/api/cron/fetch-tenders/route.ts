@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { scoreOpportunitiesByIds } from "@/lib/scoring/apply-scores";
 import { fetchTEDOpportunities } from "@/lib/sources/ted-europa";
 import { fetchUKTenders } from "@/lib/sources/uk-find-a-tender";
 
@@ -25,5 +26,8 @@ export async function GET(request: NextRequest) {
     fetchUKTenders(),
   ]);
 
-  return NextResponse.json({ ted, uk });
+  const insertedIds = [...ted.insertedIds, ...uk.insertedIds];
+  const scoring = await scoreOpportunitiesByIds(insertedIds);
+
+  return NextResponse.json({ ted, uk, scoring });
 }
