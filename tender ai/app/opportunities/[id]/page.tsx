@@ -9,18 +9,17 @@ import { signOut } from "@/app/actions/auth";
 import { OpportunityActions } from "@/components/opportunities/OpportunityActions";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
+import { DeadlineDisplay } from "@/components/opportunities/DeadlineDisplay";
 import {
   formatBudgetRange,
   formatDate,
-  formatDeadlineCountdown,
   getCountryFlag,
-  getDeadlineColorClass,
   getPortalLabel,
-  getRawTextPreview,
   getScoreBadgeClass,
   getScoreColorClass,
   parseMatchBreakdown,
 } from "@/lib/opportunities/format";
+import { getOpportunityDescription } from "@/lib/opportunities/summary";
 import type { Opportunity } from "@/lib/sources/types";
 
 function StatBox({
@@ -66,7 +65,7 @@ export default async function OpportunityDetailPage({
 
   const saved = await getSavedOpportunity(params.id);
   const breakdown = parseMatchBreakdown(opportunity.match_breakdown);
-  const preview = getRawTextPreview(opportunity.raw_text);
+  const description = getOpportunityDescription(opportunity);
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -123,11 +122,7 @@ export default async function OpportunityDetailPage({
               {getCountryFlag(opportunity.country)}{" "}
               {opportunity.country ?? "Unknown country"}
             </span>
-            <span
-              className={`font-medium ${getDeadlineColorClass(opportunity.deadline)}`}
-            >
-              {formatDeadlineCountdown(opportunity.deadline)}
-            </span>
+            <DeadlineDisplay deadline={opportunity.deadline} />
           </div>
         </section>
 
@@ -151,7 +146,11 @@ export default async function OpportunityDetailPage({
           />
           <StatBox
             label="Deadline"
-            value={formatDate(opportunity.deadline)}
+            value={
+              opportunity.deadline
+                ? formatDate(opportunity.deadline)
+                : "No deadline specified"
+            }
           />
           <StatBox
             label="Source"
@@ -166,10 +165,9 @@ export default async function OpportunityDetailPage({
               <h2 className="mb-4 text-lg font-semibold text-slate-900">
                 What they&apos;re asking for
               </h2>
-              {/* TODO: replace with AI-generated plain English summary when Claude API is available */}
-              <pre className="whitespace-pre-wrap rounded-lg bg-slate-50 p-4 text-sm leading-relaxed text-slate-700">
-                {preview}
-              </pre>
+              <p className="whitespace-pre-wrap rounded-lg bg-slate-50 p-4 text-sm leading-relaxed text-slate-700">
+                {description}
+              </p>
               {opportunity.source_url && (
                 <a
                   href={opportunity.source_url}

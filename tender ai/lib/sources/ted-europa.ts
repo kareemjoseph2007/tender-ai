@@ -1,7 +1,8 @@
 import type { FetchResult, OpportunityInsert } from "@/lib/sources/types";
+import { extractTedDeadline } from "@/lib/sources/deadline";
+import { getOpportunityDescription } from "@/lib/opportunities/summary";
 import {
   parseBudget,
-  parseDeadline,
   pickLocalizedText,
   upsertOpportunities,
 } from "@/lib/sources/upsert-opportunities";
@@ -10,14 +11,18 @@ const TED_API_URL = "https://api.ted.europa.eu/v3/notices/search";
 const TED_USER_AGENT = "TenderAI/1.0";
 
 const TED_SEARCH_QUERIES = [
-  "cpv IN (72000000, 72200000, 72300000, 72400000, 72500000, 72600000)",
-  "classification-cpv IN (72000000, 72200000, 72300000, 72400000, 72500000, 72600000)",
+  "cpv IN (72000000, 72200000, 72300000, 72400000, 72500000, 72600000) AND PD>=20240101",
+  "classification-cpv IN (72000000, 72200000, 72300000, 72400000, 72500000, 72600000) AND PD>=20240101",
 ];
 
 const TED_SEARCH_FIELDS = [
   "notice-title",
   "buyer-name",
   "deadline-receipt-tender-date-lot",
+  "deadline-receipt-tender-time-lot",
+  "deadline-date-lot",
+  "description-lot",
+  "description-proc",
   "estimated-value-lot",
   "publication-date",
   "buyer-country",
@@ -30,6 +35,8 @@ interface TedNotice {
   "buyer-name"?: unknown;
   "buyer-country"?: unknown;
   "deadline-receipt-tender-date-lot"?: unknown;
+  "deadline-receipt-tender-time-lot"?: unknown;
+  "deadline-date-lot"?: unknown;
   "estimated-value-lot"?: unknown;
   "publication-date"?: unknown;
   links?: {
@@ -51,7 +58,9 @@ function mapTedNotice(notice: TedNotice): OpportunityInsert | null {
   const title = pickLocalizedText(notice["notice-title"]);
   const buyerName = pickLocalizedText(notice["buyer-name"]);
   const country = pickLocalizedText(notice["buyer-country"]);
-  const deadline = parseDeadline(notice["deadline-receipt-tender-date-lot"]);
+  const deadline = extractTedDeadline(
+    notice as Record<string, unknown>
+  );
   const budget = parseBudget(notice["estimated-value-lot"]);
   const sourceUrl =
     notice.links?.html?.ENG ??
@@ -69,7 +78,12 @@ function mapTedNotice(notice: TedNotice): OpportunityInsert | null {
     budget_min: budget.budget_min,
     budget_max: budget.budget_max,
     raw_text: JSON.stringify(notice),
-    plain_summary: null,
+    plain_summary: getOpportunityDescription({
+      source_portal: "EU_TED",
+      plain_summary: null,
+      raw_text: JSON.stringify(notice),
+      title,
+    }),
     requirements: [],
     eligibility_requirements: [],
     evaluation_criteria: [],
@@ -126,7 +140,29 @@ export async function fetchTEDOpportunities(): Promise<FetchResult> {
       return result;
     }
 
-    const opportunities = (body.notices ?? [])
+    const notices = body.notices ?? [];
+    if (notices.length > 0) {
+      const sample = notices.find(
+        (n) =>
+          n["deadline-receipt-tender-date-lot"] != null ||
+          n["deadline-receipt-tender-time-lot"] != null
+      );
+      if (sample) {
+        console.log(
+          "[TED] Sample notice deadline fields:",
+          JSON.stringify({
+            "publication-number": sample["publication-number"],
+            "deadline-receipt-tender-date-lot":
+              sample["deadline-receipt-tender-date-lot"],
+            "deadline-receipt-tender-time-lot":
+              sample["deadline-receipt-tender-time-lot"],
+            mapped: extractTedDeadline(sample as Record<string, unknown>),
+          })
+        );
+      }
+    }
+
+    const opportunities = notices
       .map(mapTedNotice)
       .filter((notice): notice is OpportunityInsert => notice !== null);
 

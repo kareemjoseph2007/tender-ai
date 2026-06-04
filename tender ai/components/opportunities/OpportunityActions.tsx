@@ -2,7 +2,7 @@
 
 import { useFormStatus } from "react-dom";
 import { ignoreOpportunity, saveOpportunity } from "@/app/actions/opportunities";
-import { Button } from "@/components/ui/Button";
+import { Button, LinkButton } from "@/components/ui/Button";
 
 function SubmitButton({
   children,
@@ -59,14 +59,11 @@ export function OpportunityActions({
         </a>
       )}
 
-      <Button
-        variant="secondary"
-        disabled
-        title="Coming soon"
-        className="cursor-not-allowed opacity-60"
-      >
-        Write Proposal
-      </Button>
+      {!isIgnored && (
+        <LinkButton href={`/proposals/${opportunityId}`} variant="primary">
+          Write Proposal
+        </LinkButton>
+      )}
     </div>
   );
 }

@@ -1,5 +1,6 @@
 import type { FetchResult, OpportunityInsert } from "@/lib/sources/types";
-import { parseDeadline, upsertOpportunities } from "@/lib/sources/upsert-opportunities";
+import { extractUkDeadline } from "@/lib/sources/deadline";
+import { upsertOpportunities } from "@/lib/sources/upsert-opportunities";
 
 const IT_TITLE_KEYWORD_PATTERNS = [
   /\bsoftware\b/i,
@@ -47,6 +48,7 @@ interface OcdsRelease {
     tenderPeriod?: { endDate?: string };
     lots?: Array<{
       value?: { amount?: number; currency?: string };
+      tenderPeriod?: { endDate?: string };
     }>;
     documents?: Array<{ url?: string; documentType?: string }>;
   };
@@ -64,6 +66,12 @@ interface OcdsReleasePackage {
 }
 
 function releaseMatchesItTender(release: OcdsRelease): boolean {
+  const tags = release.tag ?? [];
+  const isOpenTender =
+    tags.includes("tender") &&
+    !tags.includes("award") &&
+    !tags.includes("contract");
+  if (!isOpenTender) return false;
   return titleMatchesItKeywords(release.tender?.title);
 }
 
@@ -128,7 +136,7 @@ function mapUkRelease(release: OcdsRelease): OpportunityInsert | null {
       buyerParty?.address?.countryName ??
       buyerParty?.address?.country ??
       "United Kingdom",
-    deadline: parseDeadline(release.tender?.tenderPeriod?.endDate),
+    deadline: extractUkDeadline(release as Record<string, unknown>),
     budget_min: budget.budget_min,
     budget_max: budget.budget_max,
     raw_text: JSON.stringify(release),

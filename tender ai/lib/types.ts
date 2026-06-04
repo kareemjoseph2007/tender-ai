@@ -35,6 +35,16 @@ export interface PastProject {
   created_at: string;
 }
 
+export interface TeamMember {
+  id: string;
+  company_id: string;
+  name: string;
+  role: string | null;
+  bio: string | null;
+  skills: string[];
+  years_experience: number | null;
+}
+
 export interface PastProjectInput {
   id?: string;
   title: string;

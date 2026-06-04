@@ -1,5 +1,8 @@
 import { createAdminClient } from "@/lib/supabase/admin";
+import { parseDeadlineToIso } from "@/lib/sources/deadline";
 import type { FetchResult, OpportunityInsert } from "@/lib/sources/types";
+
+export { pickLocalizedText } from "@/lib/sources/localized-text";
 
 export async function upsertOpportunities(
   opportunities: OpportunityInsert[]
@@ -34,6 +37,7 @@ export async function upsertOpportunities(
   const now = new Date().toISOString();
   const rows = opportunities.map((opportunity) => ({
     ...opportunity,
+    deadline: normalizeDeadline(opportunity.deadline),
     updated_at: now,
   }));
 
@@ -72,27 +76,6 @@ export async function upsertOpportunities(
   return result;
 }
 
-export function pickLocalizedText(
-  value: unknown,
-  preferredLang = "eng"
-): string | null {
-  if (value == null) return null;
-  if (typeof value === "string") return value;
-  if (Array.isArray(value)) {
-    return value.map(String).join(", ") || null;
-  }
-  if (typeof value === "object") {
-    const record = value as Record<string, unknown>;
-    const preferred = record[preferredLang];
-    if (preferred != null) return pickLocalizedText(preferred, preferredLang);
-    for (const entry of Object.values(record)) {
-      const text = pickLocalizedText(entry, preferredLang);
-      if (text) return text;
-    }
-  }
-  return null;
-}
-
 export function parseBudget(value: unknown): {
   budget_min: number | null;
   budget_max: number | null;
@@ -123,21 +106,15 @@ export function parseBudget(value: unknown): {
   return { budget_min: null, budget_max: null };
 }
 
+/** @deprecated Use parseDeadlineToIso from ./deadline instead */
 export function parseDeadline(value: unknown): string | null {
-  if (value == null) return null;
-  if (Array.isArray(value)) {
-    for (const item of value) {
-      const parsed = parseDeadline(item);
-      if (parsed) return parsed;
-    }
-    return null;
-  }
-  if (typeof value === "string" && value.trim()) {
-    const normalized = value.replace(/\+(\d{2}:\d{2})$/, "+$1:00");
-    const date = new Date(normalized);
-    return Number.isNaN(date.getTime()) ? null : date.toISOString();
-  }
-  return null;
+  return parseDeadlineToIso(value);
+}
+
+export function normalizeDeadline(deadline: string | null | undefined): string | null {
+  if (deadline == null) return null;
+  if (typeof deadline === "string" && !deadline.trim()) return null;
+  return parseDeadlineToIso(deadline);
 }
 
 export function matchesItCpv(code: string): boolean {

@@ -2,6 +2,7 @@ import { Resend } from "resend";
 import {
   formatBudgetRange,
   formatDeadlineCountdown,
+  formatDeadlineDateLine,
   getRawTextPreview,
 } from "@/lib/opportunities/format";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -36,7 +37,11 @@ function buildAlertEmailHtml(
   const budget = escapeHtml(
     formatBudgetRange(opportunity.budget_min, opportunity.budget_max)
   );
-  const deadline = escapeHtml(formatDeadlineCountdown(opportunity.deadline));
+  const deadlineCountdown = formatDeadlineCountdown(opportunity.deadline);
+  const deadlineDate = formatDeadlineDateLine(opportunity.deadline);
+  const deadline = escapeHtml(
+    deadlineDate ? `${deadlineCountdown} (${deadlineDate})` : deadlineCountdown
+  );
   const excerpt = escapeHtml(getRawTextExcerpt(opportunity.raw_text));
 
   return `<!DOCTYPE html>

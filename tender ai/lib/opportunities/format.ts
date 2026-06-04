@@ -62,7 +62,7 @@ export function getDaysUntilDeadline(deadline: string | null): number | null {
 
 export function formatDeadlineCountdown(deadline: string | null): string {
   const days = getDaysUntilDeadline(deadline);
-  if (days == null) return "No deadline";
+  if (days == null) return "No deadline specified";
   if (days < 0) return "Expired";
   if (days === 0) return "Due today";
   if (days === 1) return "1 day left";
@@ -71,10 +71,20 @@ export function formatDeadlineCountdown(deadline: string | null): string {
 
 export function getDeadlineColorClass(deadline: string | null): string {
   const days = getDaysUntilDeadline(deadline);
-  if (days == null) return "text-slate-600";
+  if (days == null) return "text-slate-500";
+  if (days < 0) return "text-red-600";
   if (days < 7) return "text-red-600";
   if (days < 14) return "text-amber-600";
   return "text-emerald-600";
+}
+
+export function formatDeadlineDateLine(deadline: string | null): string | null {
+  if (!deadline) return null;
+  return new Intl.DateTimeFormat("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  }).format(new Date(deadline));
 }
 
 export function getScoreColorClass(score: number | null): string {

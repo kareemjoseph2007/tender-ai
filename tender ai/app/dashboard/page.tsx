@@ -1,18 +1,31 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
+import {
+  getDashboardData,
+  touchLastLoginAndGetPrevious,
+} from "@/app/actions/dashboard";
 import { signOut } from "@/app/actions/auth";
 import { getCompanyProfile } from "@/app/actions/onboarding";
-import { getTopOpportunities } from "@/app/actions/opportunities";
+import { DashboardSections } from "@/components/dashboard/DashboardSections";
 import { Button, LinkButton } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
-import {
-  formatDeadlineCountdown,
-  getCountryFlag,
-  getDeadlineColorClass,
-  getPortalLabel,
-  getScoreBadgeClass,
-} from "@/lib/opportunities/format";
-import type { Opportunity } from "@/lib/sources/types";
+import { createClient } from "@/lib/supabase/server";
+
+function StatCard({
+  label,
+  value,
+}: {
+  label: string;
+  value: number;
+}) {
+  return (
+    <Card className="!p-4">
+      <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+        {label}
+      </p>
+      <p className="mt-1 text-2xl font-bold text-slate-900">{value}</p>
+    </Card>
+  );
+}
 
 export default async function DashboardPage() {
   const profile = await getCompanyProfile();
@@ -21,12 +34,26 @@ export default async function DashboardPage() {
     redirect("/onboard");
   }
 
-  const opportunities = (await getTopOpportunities(10)) as Opportunity[];
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/login");
+  }
+
+  const loginMeta = await touchLastLoginAndGetPrevious();
+  const data = await getDashboardData(
+    profile.id,
+    user.id,
+    loginMeta?.previousLastLogin ?? null
+  );
 
   return (
     <div className="min-h-screen bg-slate-50">
       <header className="border-b border-slate-200 bg-white">
-        <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
+        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
           <div className="flex items-center gap-2">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-600 text-xs font-bold text-white">
               T
@@ -41,70 +68,36 @@ export default async function DashboardPage() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-5xl px-6 py-8">
-        <div className="mb-8">
-          <h1 className="text-2xl font-semibold text-slate-900">
-            Top opportunities
-          </h1>
+      <main className="mx-auto max-w-6xl px-6 py-8">
+        <div className="mb-6">
+          <h1 className="text-2xl font-semibold text-slate-900">Dashboard</h1>
           <p className="mt-1 text-sm text-slate-600">
             {profile.name
-              ? `Ranked by match score for ${profile.name}. Full dashboard coming in Step 8.`
-              : "Ranked by match score. Full dashboard coming in Step 8."}
+              ? `Opportunities matched for ${profile.name}`
+              : "Your tender pipeline at a glance"}
           </p>
         </div>
 
-        {opportunities.length === 0 ? (
-          <Card className="text-center">
-            <p className="text-slate-600">
-              No opportunities yet. Run the tender fetch cron to pull in data.
-            </p>
-          </Card>
-        ) : (
-          <div className="space-y-3">
-            {opportunities.map((opportunity) => (
-              <Link
-                key={opportunity.id}
-                href={`/opportunities/${opportunity.id}`}
-                className="block rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-brand-200 hover:shadow-md"
-              >
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="min-w-0 flex-1">
-                    <div className="mb-1 flex flex-wrap items-center gap-2">
-                      <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">
-                        {getPortalLabel(opportunity.source_portal)}
-                      </span>
-                      <span
-                        className={`rounded-full px-2 py-0.5 text-xs font-semibold ${getScoreBadgeClass(opportunity.match_score)}`}
-                      >
-                        {opportunity.match_score != null
-                          ? `${opportunity.match_score}% match`
-                          : "Unscored"}
-                      </span>
-                    </div>
-                    <h2 className="truncate font-semibold text-slate-900">
-                      {opportunity.title ?? "Untitled tender"}
-                    </h2>
-                    <p className="mt-0.5 text-sm text-slate-600">
-                      {opportunity.buyer_name ?? "Unknown buyer"}
-                    </p>
-                  </div>
+        <div className="mb-8 grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <StatCard
+            label="Tenders found this week"
+            value={data.stats.tendersThisWeek}
+          />
+          <StatCard
+            label="Strong matches"
+            value={data.stats.strongMatches}
+          />
+          <StatCard
+            label="Deadlines in 14 days"
+            value={data.stats.deadlinesIn14Days}
+          />
+          <StatCard
+            label="Proposals drafted"
+            value={data.stats.proposalsDrafted}
+          />
+        </div>
 
-                  <div className="flex shrink-0 flex-wrap items-center gap-4 text-sm text-slate-600">
-                    <span>
-                      {getCountryFlag(opportunity.country)}{" "}
-                      {opportunity.country ?? "—"}
-                    </span>
-                    <span
-                      className={`font-medium ${getDeadlineColorClass(opportunity.deadline)}`}
-                    >
-                      {formatDeadlineCountdown(opportunity.deadline)}
-                    </span>
-                  </div>
-                </div>
-              </Link>
-            ))}
-          </div>
-        )}
+        <DashboardSections data={data} />
 
         <div className="mt-8 text-center">
           <LinkButton href="/onboard" variant="ghost" size="sm">
