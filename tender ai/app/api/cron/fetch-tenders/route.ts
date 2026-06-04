@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { processAlertsForOpportunities } from "@/lib/alerts/process-alerts";
 import { scoreOpportunitiesByIds } from "@/lib/scoring/apply-scores";
 import { fetchTEDOpportunities } from "@/lib/sources/ted-europa";
 import { fetchUKTenders } from "@/lib/sources/uk-find-a-tender";
@@ -28,6 +29,7 @@ export async function GET(request: NextRequest) {
 
   const insertedIds = [...ted.insertedIds, ...uk.insertedIds];
   const scoring = await scoreOpportunitiesByIds(insertedIds);
+  const alerts = await processAlertsForOpportunities(insertedIds);
 
-  return NextResponse.json({ ted, uk, scoring });
+  return NextResponse.json({ ted, uk, scoring, alerts });
 }

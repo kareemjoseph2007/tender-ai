@@ -1,9 +1,22 @@
 import type { FetchResult, OpportunityInsert } from "@/lib/sources/types";
-import {
-  matchesItCpv,
-  parseDeadline,
-  upsertOpportunities,
-} from "@/lib/sources/upsert-opportunities";
+import { parseDeadline, upsertOpportunities } from "@/lib/sources/upsert-opportunities";
+
+const IT_TITLE_KEYWORD_PATTERNS = [
+  /\bsoftware\b/i,
+  /\bit\b/i,
+  /\bdigital\b/i,
+  /\bdata\b/i,
+  /\bsystems\b/i,
+  /\btechnology\b/i,
+  /\btechnologies\b/i,
+  /\bdevelopment\b/i,
+] as const;
+
+/** Exported for one-off cleanup scripts. */
+export function titleMatchesItKeywords(title: string | null | undefined): boolean {
+  if (!title?.trim()) return false;
+  return IT_TITLE_KEYWORD_PATTERNS.some((pattern) => pattern.test(title));
+}
 
 const UK_API_BASE =
   "https://www.find-tender.service.gov.uk/api/1.0/ocdsReleasePackages";
@@ -50,31 +63,8 @@ interface OcdsReleasePackage {
   links?: { next?: string };
 }
 
-function extractCpvCodes(release: OcdsRelease): string[] {
-  const codes = new Set<string>();
-  const tender = release.tender;
-  if (!tender) return [];
-
-  if (tender.classification?.scheme === "CPV" && tender.classification.id) {
-    codes.add(tender.classification.id);
-  }
-
-  for (const item of tender.items ?? []) {
-    if (item.classification?.scheme === "CPV" && item.classification.id) {
-      codes.add(item.classification.id);
-    }
-    for (const classification of item.additionalClassifications ?? []) {
-      if (classification.scheme === "CPV" && classification.id) {
-        codes.add(classification.id);
-      }
-    }
-  }
-
-  return Array.from(codes);
-}
-
-function releaseMatchesItCpv(release: OcdsRelease): boolean {
-  return extractCpvCodes(release).some(matchesItCpv);
+function releaseMatchesItTender(release: OcdsRelease): boolean {
+  return titleMatchesItKeywords(release.tender?.title);
 }
 
 function getBuyerName(release: OcdsRelease): string | null {
@@ -200,7 +190,7 @@ export async function fetchUKTenders(): Promise<FetchResult> {
       }
 
       for (const release of packageData.releases ?? []) {
-        if (useClientSideFilter && !releaseMatchesItCpv(release)) {
+        if (!releaseMatchesItTender(release)) {
           continue;
         }
 
