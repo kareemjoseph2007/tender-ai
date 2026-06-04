@@ -75,10 +75,15 @@ export async function getDashboardData(
 ): Promise<DashboardData> {
   const supabase = await createClient();
   const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+  const nowIso = new Date().toISOString();
+  const in14DaysIso = new Date(
+    Date.now() + 14 * 24 * 60 * 60 * 1000
+  ).toISOString();
 
   const [
     weekCountRes,
     strongCountRes,
+    deadlines14Res,
     strongListRes,
     newListRes,
     mediumRes,
@@ -97,6 +102,13 @@ export async function getDashboardData(
       .select("id", { count: "exact", head: true })
       .gte("match_score", 80)
       .neq("status", "ignored"),
+    supabase
+      .from("opportunities")
+      .select("id", { count: "exact", head: true })
+      .neq("status", "ignored")
+      .not("deadline", "is", null)
+      .gte("deadline", nowIso)
+      .lte("deadline", in14DaysIso),
     supabase
       .from("opportunities")
       .select("*")
@@ -170,13 +182,6 @@ export async function getDashboardData(
     })
     .slice(0, 10);
 
-  const deadlinesIn14Days = allSavedWithOpp.filter((row) => {
-    const deadline = row.opportunities?.deadline;
-    if (!deadline) return false;
-    const days = daysFromNow(deadline);
-    return days >= 0 && days <= 14;
-  }).length;
-
   const inProgress = (inProgressRes.data ?? [])
     .map((row) => normalizeSavedRow(row as Record<string, unknown>))
     .sort((a, b) => {
@@ -190,7 +195,7 @@ export async function getDashboardData(
     stats: {
       tendersThisWeek: weekCountRes.count ?? 0,
       strongMatches: strongCountRes.count ?? 0,
-      deadlinesIn14Days,
+      deadlinesIn14Days: deadlines14Res.count ?? 0,
       proposalsDrafted: proposalsRes.count ?? 0,
     },
     strongMatches: (strongListRes.data ?? []) as Opportunity[],

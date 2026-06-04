@@ -162,7 +162,7 @@ export function DashboardSections({
               </ul>
               <div className="border-t border-slate-100 px-4 py-3">
                 <Link
-                  href="/dashboard"
+                  href="/opportunities?minScore=60&maxScore=80"
                   className="text-sm font-medium text-brand-600 hover:text-brand-700"
                 >
                   View all

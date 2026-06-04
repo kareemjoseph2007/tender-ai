@@ -38,6 +38,7 @@ export async function saveOpportunity(opportunityId: string) {
 
   revalidatePath(`/opportunities/${opportunityId}`);
   revalidatePath("/dashboard");
+  revalidatePath("/opportunities");
 }
 
 export async function ignoreOpportunity(opportunityId: string) {
@@ -65,7 +66,30 @@ export async function ignoreOpportunity(opportunityId: string) {
 
   revalidatePath(`/opportunities/${opportunityId}`);
   revalidatePath("/dashboard");
+  revalidatePath("/opportunities");
   redirect("/dashboard");
+}
+
+export async function getOpportunitiesByScoreRange(
+  minScore: number,
+  maxScore: number,
+  limit = 50
+) {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("opportunities")
+    .select("*")
+    .gte("match_score", minScore)
+    .lt("match_score", maxScore)
+    .neq("status", "ignored")
+    .order("match_score", { ascending: false })
+    .limit(limit);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data ?? [];
 }
 
 export async function getTopOpportunities(limit = 10) {
